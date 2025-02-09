@@ -47,32 +47,34 @@
     
         <h3>Required Pump Power: <span id="powerOutput">-</span> kW</h3>
     
-        <table>
+        <table id="dataTable">
             <thead>
                 <tr>
                     <th>Flow Rate (m³/h)</th>
                     <th>Head (m)</th>
                     <th>Efficiency (%)</th>
-                    <th>Specific Gravity</th>
-                    <th>Pump Power (kW)</th>
+                    <th>Power (kW)</th>
                     <th>Action</th>
                 </tr>
             </thead>
-            <tbody id="dataTable">
+            <tbody>
             </tbody>
         </table>
     
-        <canvas id="powerChart"></canvas>
+        <canvas id="headChart"></canvas>
+        <canvas id="efficiencyChart"></canvas>
     </div>
     
     <script>
+        let flowRates = [];
+        let heads = [];
+        let efficiencies = [];
+        let headChart, efficiencyChart;
+    
         function showSection(sectionId) {
             document.querySelectorAll('div.hidden').forEach(div => div.style.display = 'none');
             document.getElementById(sectionId).style.display = 'block';
         }
-    
-        let powerChart;
-        let tableData = [];
     
         function calculatePower() {
             const flowRate = parseFloat(document.getElementById("flowRate").value);
@@ -87,38 +89,31 @@
     
             const efficiencyDecimal = efficiency / 100;
             const power = (flowRate * head * sg) / (367 * efficiencyDecimal);
-            const roundedPower = power.toFixed(3);
-    
-            document.getElementById("powerOutput").innerText = roundedPower;
-            addToTable(flowRate, head, efficiency, sg, roundedPower);
-            updateChart(flowRate, head, efficiency);
+            document.getElementById("powerOutput").innerText = power.toFixed(3);
+            addRowToTable(flowRate, head, efficiency, power);
+            updateCharts(flowRate, head, efficiency);
         }
     
-        function addToTable(flowRate, head, efficiency, sg, power) {
-            tableData.push({ flowRate, head, efficiency, sg, power });
-            updateTable();
+        function addRowToTable(flowRate, head, efficiency, power) {
+            const table = document.getElementById("dataTable").getElementsByTagName("tbody")[0];
+            const newRow = table.insertRow();
+            newRow.innerHTML = `<td>${flowRate}</td><td>${head}</td><td>${efficiency}</td><td>${power.toFixed(3)}</td><td><button onclick="deleteRow(this, ${flowRate}, ${head}, ${efficiency})">Delete</button></td>`;
+            flowRates.push(flowRate);
+            heads.push(head);
+            efficiencies.push(efficiency);
+            updateCharts();
         }
     
-        function updateTable() {
-            const tableBody = document.getElementById("dataTable");
-            tableBody.innerHTML = "";
-            tableData.forEach((row, index) => {
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-                    <td>${row.flowRate}</td>
-                    <td>${row.head}</td>
-                    <td>${row.efficiency}</td>
-                    <td>${row.sg}</td>
-                    <td>${row.power}</td>
-                    <td><button onclick="deleteRow(${index})">Delete</button></td>
-                `;
-                tableBody.appendChild(tr);
-            });
-        }
-    
-        function deleteRow(index) {
-            tableData.splice(index, 1);
-            updateTable();
+        function deleteRow(button, flowRate, head, efficiency) {
+            const row = button.parentElement.parentElement;
+            row.remove();
+            const index = flowRates.indexOf(flowRate);
+            if (index > -1) {
+                flowRates.splice(index, 1);
+                heads.splice(index, 1);
+                efficiencies.splice(index, 1);
+            }
+            updateCharts();
         }
     
         function resetPage() {
@@ -127,43 +122,37 @@
             document.getElementById("efficiency").value = "80";
             document.getElementById("sg").value = "1";
             document.getElementById("powerOutput").innerText = "-";
-            tableData = [];
-            updateTable();
-            if (powerChart) {
-                powerChart.destroy();
-                powerChart = null;
-            }
+            document.getElementById("dataTable").getElementsByTagName("tbody")[0].innerHTML = "";
+            flowRates = [];
+            heads = [];
+            efficiencies = [];
+            updateCharts();
         }
     
-        function updateChart(flowRate, head, efficiency) {
-            if (!powerChart) {
-                const ctx = document.getElementById("powerChart").getContext("2d");
-                powerChart = new Chart(ctx, {
-                    type: "line",
-                    data: {
-                        labels: [flowRate],
-                        datasets: [
-                            {
-                                label: "Head (m)",
-                                data: [head],
-                                borderColor: "red",
-                                fill: false
-                            },
-                            {
-                                label: "Efficiency (%)",
-                                data: [efficiency],
-                                borderColor: "green",
-                                fill: false
-                            }
-                        ]
-                    }
-                });
-            } else {
-                powerChart.data.labels.push(flowRate);
-                powerChart.data.datasets[0].data.push(head);
-                powerChart.data.datasets[1].data.push(efficiency);
-                powerChart.update();
-            }
+        function updateCharts() {
+            const ctxHead = document.getElementById("headChart").getContext("2d");
+            const ctxEfficiency = document.getElementById("efficiencyChart").getContext("2d");
+    
+            if (headChart) headChart.destroy();
+            if (efficiencyChart) efficiencyChart.destroy();
+    
+            headChart = new Chart(ctxHead, {
+                type: "line",
+                data: {
+                    labels: flowRates,
+                    datasets: [{ label: "Head (m)", data: heads, borderColor: "blue", fill: false }]
+                },
+                options: { responsive: true, scales: { x: { title: { display: true, text: "Flow Rate (m³/h)" } }, y: { title: { display: true, text: "Head (m)" } } } }
+            });
+    
+            efficiencyChart = new Chart(ctxEfficiency, {
+                type: "line",
+                data: {
+                    labels: flowRates,
+                    datasets: [{ label: "Efficiency (%)", data: efficiencies, borderColor: "green", fill: false }]
+                },
+                options: { responsive: true, scales: { x: { title: { display: true, text: "Flow Rate (m³/h)" } }, y: { title: { display: true, text: "Efficiency (%)" } } } }
+            });
         }
     </script>
 </body>
