@@ -9,6 +9,9 @@
         body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
         input, button { margin: 5px; padding: 8px; }
         canvas { max-width: 600px; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid black; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; }
     </style>
 </head>
 <body>
@@ -27,14 +30,31 @@
     <input type="number" id="sg" value="1"><br>
 
     <button onclick="calculatePower()">Calculate</button>
+    <button onclick="resetPage()">Reset</button>
 
     <h3>Required Pump Power: <span id="powerOutput">-</span> kW</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Flow Rate (m³/h)</th>
+                <th>Head (m)</th>
+                <th>Efficiency (%)</th>
+                <th>Specific Gravity</th>
+                <th>Pump Power (kW)</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="dataTable">
+        </tbody>
+    </table>
 
     <canvas id="powerChart"></canvas>
 
     <script>
         let powerChart;
-        
+        let tableData = [];
+
         function calculatePower() {
             const flowRate = parseFloat(document.getElementById("flowRate").value);
             const head = parseFloat(document.getElementById("head").value);
@@ -52,8 +72,49 @@
             const roundedPower = power.toFixed(3);
 
             document.getElementById("powerOutput").innerText = roundedPower;
-
+            addToTable(flowRate, head, efficiency, sg, roundedPower);
             updateChart(flowRate, roundedPower);
+        }
+
+        function addToTable(flowRate, head, efficiency, sg, power) {
+            tableData.push({ flowRate, head, efficiency, sg, power });
+            updateTable();
+        }
+
+        function updateTable() {
+            const tableBody = document.getElementById("dataTable");
+            tableBody.innerHTML = "";
+            tableData.forEach((row, index) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${row.flowRate}</td>
+                    <td>${row.head}</td>
+                    <td>${row.efficiency}</td>
+                    <td>${row.sg}</td>
+                    <td>${row.power}</td>
+                    <td><button onclick="deleteRow(${index})">Delete</button></td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function deleteRow(index) {
+            tableData.splice(index, 1);
+            updateTable();
+        }
+
+        function resetPage() {
+            document.getElementById("flowRate").value = "10";
+            document.getElementById("head").value = "50";
+            document.getElementById("efficiency").value = "80";
+            document.getElementById("sg").value = "1";
+            document.getElementById("powerOutput").innerText = "-";
+            tableData = [];
+            updateTable();
+            if (powerChart) {
+                powerChart.destroy();
+                powerChart = null;
+            }
         }
 
         function updateChart(flowRate, power) {
